@@ -296,6 +296,39 @@ class AIPlayer(Player):
             return -1
         else:
             return -0.01
+    
+    #Temporal Difference Learning
+    #
+    #Description: 
+    #
+    #Parameters: 
+    #
+    #return:
+    def TDlearning():
+        #Initialize the parameters 
+        gamma = -1
+        rewardSize = -1
+        gridSize = 4
+        alpha = 0.5
+        terminationStates = [0,0]
+        
+        #
+        #for it in tqdm(range(numIterations)):
+
+        
+    
+
+        return 
+
+    #Calculate the temporal differenc error 
+    def TDError(self, k, t):
+
+        return 
+    
+    def updateCurrentTD(self, k, t):
+
+        return 
+
 
 class TDLearningTest(unittest.TestCase):
 
