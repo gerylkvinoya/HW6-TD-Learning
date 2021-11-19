@@ -44,6 +44,12 @@ class AIPlayer(Player):
         super(AIPlayer,self).__init__(inputPlayerId, "TDLearning")
         self.discountFactor = 0.9
         self.learningRate = 0.1
+
+        #list to store the consolidated states in a tuple format
+        #(categorizedState, utility)
+        #maybe make a function that gets a categorized state, adds it to the list if it doesn't exist, and returns utility
+        #if it already exists, return the utility from the tuple
+        self.consolidatedStates = []
     
     ##
     #getPlacement
@@ -288,181 +294,201 @@ class AIPlayer(Player):
                 bestNode = node
 
         return 
-        
-    def getReward(self, hasWon):
-        if hasWon:
-            return 1
-        if not hasWon:
-            return -1
-        else:
-            return -0.01
 
+    #categorizeState
+    #
+    #Description: catergorizes a state based off of certain information in the state
+    #
+    #Parameters: currentState - state to categorize
+    #
+    #return: the category of the state in a Dict object
+    def categorizeState(self, currentState):
+        me = currentState.whoseTurn
+        enemy = 1 - me
+
+        myInv = currentState.inventories[me]
+        myQueen = myInv.getQueen()
+
+        #get the values of the anthill, tunnel, and foodcount
+        myTunnel = getConstrList(currentState, me, (TUNNEL,))[0]
+        myAnthill = getConstrList(currentState, me, (ANTHILL,))[0]
+        myFoodList = getConstrList(currentState, 2, (FOOD,))
+        enemyTunnel = getConstrList(currentState, enemy, (TUNNEL,))[0]
+
+        #get my soldiers and workers
+        mySoldiers = getAntList(currentState, me, (SOLDIER,))
+        myWorkerList = getAntList(currentState, me, (WORKER,))
+
+        #get enemy worker and queen
+        enemyWorkerList = getAntList(currentState, enemy, (WORKER,))
+        enemyQueenList = getAntList(currentState, enemy, (QUEEN,))
+
+        category = {
+                'foodCount' : currentState.inventories[me].foodCount, #my current food count
+                'queenOnBldg' : self.queenOnBldg(myQueen, myTunnel, myAnthill), #true if queen is on a my tunnel/anthill, false if not
+                'mySoldier' : len(mySoldiers), #number of workers
+                'workerCount' : len(myWorkerList), #number of soldiers
+                'carryingWorkerDist' : self.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), #minimum distance that any carrying worker is from a building
+                'nonCarryingWorkerDist': self.nonCarryingWorkerDist(myWorkerList, myFoodList) #minimum distance that any non carrying worker is from any of my food
+            }
+
+        return category
+
+    #queenOnBldg
+    #
+    #Description: return true if the queen is on a building, false if not
+    #
+    #Parameters:
+    #   myQueen
+    #   myTunnel
+    #   myAnthill
+    #
+    #return: boolean if queen is on a building
+    def queenOnBldg(self, myQueen, myTunnel, myAnthill):
+        if (myQueen.coords == myTunnel.coords) or (myQueen.coords == myAnthill.coords):
+            return True
+        return False
+
+    #carryingWorkerDist
+    #
+    #Description: returns the minimum distance any carrying worker is from a building
+    #
+    #Parameters:
+    #   myWorkerList
+    #   myTunnel
+    #   myAnthill
+    #
+    #return: int
+    def carryingWorkerDist(self, myWorkerList, myTunnel, myAnthill):
+        carryingWorkers = []
+        distList = []
+        for worker in myWorkerList:
+            if worker.carrying:
+                carryingWorkers.append(worker)
+                tunnelDist = approxDist(worker.coords, myTunnel.coords)
+                anthillDist = approxDist(worker.coords, myAnthill.coords)
+                distList.append(min(tunnelDist, anthillDist))
+            
+        if len(carryingWorkers) == 0:
+            return -1
+
+        return min(distList)
+
+    #nonCarryingWorkerDist
+    #
+    #Description: returns the minimum distance any carrying worker is from food
+    #
+    #Parameters:
+    #   myWorkerList
+    #   myTunnel
+    #   myAnthill
+    #
+    #return: int
+    def nonCarryingWorkerDist(self, myWorkerList, myFoodList):
+        nonCarryingWorkers = []
+        foodDist = []
+        for worker in myWorkerList:
+            if not worker.carrying:
+                nonCarryingWorkers.append(worker)
+                for food in myFoodList:
+                    foodDist.append(approxDist(worker.coords, food.coords))
+
+            
+        if len(nonCarryingWorkers) == 0:
+            return -1
+
+        return min(foodDist)
+
+    
+#python -m unittest TDLearning.TDLearningTest
 class TDLearningTest(unittest.TestCase):
 
-    #queens, anthills, and tunnels only
-    def testUtilityBasic(self):
+    def testCategorizeState(self):
         player = AIPlayer(0)
         gameState = GameState.getBasicState()
 
-        self.assertEqual(player.utility(gameState), 0.01)
+        category = player.categorizeState(gameState)
+        util = player.utility(gameState)
 
-    def testBestMove(self):
-        player = AIPlayer(0)
+        player.consolidatedStates.append((category, util))
 
-        nodes = []
-
-        #making node objects (only eval is used)
-        for i in range(10):
-            node = {
-                'eval' : i,
-            }
-            nodes.append(node) 
-
-        best = player.bestMove(nodes)
-
-        self.assertEqual(best['eval'], 9)
-
-    def testInitWeights(self):
-        player = AIPlayer(0)
-        hiddenLayer = player.initWeights(40)
-        outputLayer = player.initWeights(9)
-
-        for num in hiddenLayer:
-            self.assertAlmostEqual(num, 0, delta=1)
+        print(player.consolidatedStates)
         
-        for num in outputLayer:
-            self.assertAlmostEqual(num, 0, delta=1)
-        
-        self.assertEqual(40, len(hiddenLayer))
-        self.assertEqual(9, len(outputLayer))
-
-    def testSigmoid(self):
-        player = AIPlayer(0)
-        num = player.sig(1)
-        self.assertAlmostEqual(num, 0.7310585786300049)
-
-    def testActivateNeuron(self):
-        player = AIPlayer(0)
-        weights = [-0.5061572036196194, 0.11710044128933261, -0.5640861215824573, -0.6753749016864017, 0.20443410702909404]
-        inputs = [1, 0, 0, 1]
-        activation = player.activateNeuron(inputs, weights)
-        self.assertAlmostEqual(activation, (-0.184622655301))
-    
-    def testGetOutputOneNeuron(self):
-        player = AIPlayer(0)
-
-        hiddenWeights = [-0.5061572036196194, 0.11710044128933261, -0.5640861215824573, -0.6753749016864017, 0.20443410702909404]
-        outputWeights = [0.2395010298047295, -0.79178479274999917]
-        inputs = [1, 0, 0, 1]
-
-        output = player.getOutput(inputs, hiddenWeights, outputWeights)
-        #CHECK to make sure this is the expected number
-        self.assertAlmostEqual(output, 0.4700, delta=0.0001)
-
-    def testGetOutputEightNeurons(self):
-        player = AIPlayer(0)
-
-        #40 weights for 8 neurons
-        hiddenWeights = [0.3415, -0.4910, 0.7999, 0.1322, -0.9931, 
-                         0.5132, -0.1122, -0.8483, 0.6340, 0.8888,
-                         0.1342, -0.9348, -0.1234, 0.4333, -0.1222,
-                         0.3937, -0.3882, 0.5555, 0.9294, 0.8726,
-                         0.3947, 0.9673, 0.4872, -0.8366, -0.2838,
-                         0.6333, -0.4522, 0.9983, 0.8272, 0.2333,
-                         0.3344, -0.5523, -0.9101, 0.3710, 0.3999,
-                         -0.1233, -0.3456, -0.3291, -0.9967, -0.8437]
-
-        #9 weights for one output
-        outputWeights = [0.2334, -0.2985, 0.9090, 0.7329, 0.1121,
-                         0.1022, -0.5234, -0.6444, -0.7291]
-
-        inputs = [1, 0, 0, 1]
-
-        #round to 4 places, it's close enough after testing with 3 different sets of numbers
-        aiOutput = round(player.getOutput(inputs, hiddenWeights, outputWeights), 4)
-
-        #CHECK to make sure this is the expected number
-        self.assertAlmostEqual(aiOutput, 0.6027, delta=0.001)
-
-    def testGetErrorTerm(self):
-        player = AIPlayer(0)
-        #self.assertAlmostEqual(player.getErrorTerm(0, 0.4101), -0.0992, delta=0.0001)
-        #self.assertAlmostEqual(player.getErrorTerm(1, 0.3820), -0.1457, delta=0.0001)
-        self.assertAlmostEqual(player.getErrorTerm(-0.2650, 0.2650), -0.0516, delta=0.0001)
-
-    def testGetHiddenNodeError(self):
-        player = AIPlayer(0)
-
-        errTerm = player.getErrorTerm(-0.2650, 0.2650)
-
-        outputWeights = [0.2334, -0.2985, 0.9090, 0.7329, 0.1121,
-                         0.1022, -0.5234, -0.6444, -0.7291]
-
-        hiddenErrorList = player.getHiddenNodeError(errTerm, outputWeights)
-
-        expectedList = [0.0154026, -0.0469044, -0.03781764, -0.00578436,
-            -0.00527352, 0.02700744, 0.03325104, 0.03762156]
-
-        for i in range(len(hiddenErrorList)):
-            self.assertAlmostEqual(hiddenErrorList[i], expectedList[i], delta=0.0001)
-    
-    def testGetHiddenOutputList(self):
-        player = AIPlayer(0)
-        inp = [1, 0, 0, 1]
-        hiddenWeights = [0.5061, 0.1171, -0.5640, -0.6753, 0.2044, 
-                        0.1342, -0.4829, 0.8382, -0.3222, 0.0421]
-        
-        activationList = [0.8276, -0.3066]
-        sigList = []
-        for num in activationList:
-            sigList.append(player.sig(num))
-
-        self.assertEqual(player.getHiddenOutputList(inp, hiddenWeights), sigList)
-
-
-    def testGetHiddenNodeErrorTerms(self):
-        player = AIPlayer(0)
-
-        inp = [1, 0, 0, 1]
-        hiddenWeights = [0.5061, 0.1171, -0.5640, -0.6753, 0.2044, 
-                        0.1342, -0.4829, 0.8382, -0.3222, 0.0421]
-
-        #[0.695847223430284, 0.42394485650174163]
-        hiddenOutputList = player.getHiddenOutputList(inp, hiddenWeights)
         
 
-        hiddenErrorList = [0.0154, -0.0469]
 
-        hiddenNodeErrorTermsList = player.getHiddenNodeErrorTerms(hiddenOutputList, hiddenErrorList)
-        expectedList  = [0.0032, -0.0114]
-        for i in range(len(hiddenErrorList)):
-            self.assertAlmostEqual(hiddenNodeErrorTermsList[i], expectedList[i], delta=0.0001)
-
-    def testAdjustWeight(self):
+    def testQueenOnBldg(self):
         player = AIPlayer(0)
-        self.assertAlmostEqual(player.adjustWeight(0.1, 0.0075, 1), 0.1038, delta=0.0001)
+        gameState = GameState.getBasicState()
 
-    def testGetNodeIndex(self):
+        me = gameState.whoseTurn
+        enemy = 1 - me
+
+        myInv = gameState.inventories[me]
+        myQueen = myInv.getQueen()
+
+        #get the values of the anthill, tunnel, and foodcount
+        myTunnel = getConstrList(gameState, me, (TUNNEL,))[0]
+        myAnthill = getConstrList(gameState, me, (ANTHILL,))[0]
+
+        self.assertEqual(player.queenOnBldg(myQueen, myTunnel, myAnthill), True)
+
+    def testCarryingWorkerDist(self):
         player = AIPlayer(0)
-        #changing to account for 9 weights
-        self.assertEqual(player.getNodeIndex(3), 0)
-        self.assertEqual(player.getNodeIndex(5), 0)
-        self.assertEqual(player.getNodeIndex(14), 1)
-        self.assertEqual(player.getNodeIndex(17), 1)
-        self.assertEqual(player.getNodeIndex(23), 2)
+        gameState = GameState.getBasicState()
 
-    def testBackPropagate(self):
-        #40 weights for 8 neurons
-        hiddenWeights = [0.3415, -0.4910, 0.7999, 0.1322, -0.9931, 
-                         0.5132, -0.1122, -0.8483, 0.6340, 0.8888,
-                         0.1342, -0.9348, -0.1234, 0.4333, -0.1222,
-                         0.3937, -0.3882, 0.5555, 0.9294, 0.8726,
-                         0.3947, 0.9673, 0.4872, -0.8366, -0.2838,
-                         0.6333, -0.4522, 0.9983, 0.8272, 0.2333,
-                         0.3344, -0.5523, -0.9101, 0.3710, 0.3999,
-                         -0.1233, -0.3456, -0.3291, -0.9967, -0.8437]
+        me = gameState.whoseTurn
+        enemy = 1 - me
 
-        #9 weights for one output
-        outputWeights = [0.2334, -0.2985, 0.9090, 0.7329, 0.1121,
-                         0.1022, -0.5234, -0.6444, -0.7291]
+        myTunnel = getConstrList(gameState, me, (TUNNEL,))[0]
+        myAnthill = getConstrList(gameState, me, (ANTHILL,))[0]
 
+        
+
+        worker1 = Ant((0, 2), WORKER, me)
+
+        myWorkerList = []
+        myWorkerList.append(worker1)
+
+        self.assertEqual(player.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), -1)
+
+        worker2 = Ant((3, 0), WORKER,  me)
+        worker2.carrying = True
+
+        myWorkerList.append(worker2)
+
+        self.assertEqual(player.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), 3)
+
+        worker3 = Ant((9, 1), WORKER, me)
+        worker3.carrying = True
+
+        myWorkerList.append(worker3)
+
+        self.assertEqual(player.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), 1)
+
+    def testNonCarryingWorkerDist(self):
+        player = AIPlayer(0)
+        gameState = GameState.getBasicState()
+
+        me = gameState.whoseTurn
+
+        food1 = Construction((0, 7), FOOD)
+        food2 = Construction((3, 2), FOOD)
+        foodList= []
+        foodList.append(food1)
+        foodList.append(food2)
+
+        worker1 = Ant((0, 2), WORKER, me)
+
+        myWorkerList = []
+
+        self.assertEqual(player.nonCarryingWorkerDist(myWorkerList, foodList), -1)
+
+        myWorkerList.append(worker1)
+
+        self.assertEqual(player.nonCarryingWorkerDist(myWorkerList, foodList), 3)
+
+        worker2 = Ant((1, 7), WORKER, me)
+        myWorkerList.append(worker2)
+
+        self.assertEqual(player.nonCarryingWorkerDist(myWorkerList, foodList), 1)
