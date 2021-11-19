@@ -20,6 +20,8 @@ from AIPlayerUtils import *
 from typing import Dict, List
 import unittest
 import numpy as np
+from pathlib import Path
+import ast
 
 
 ##
@@ -48,8 +50,11 @@ class AIPlayer(Player):
         #list to store the consolidated states in a tuple format
         #(categorizedState, utility)
         #maybe make a function that gets a categorized state, adds it to the list if it doesn't exist, and returns utility
-        #if it already exists, return the utility from the tuple
-        self.consolidatedStates = []
+        #if it already exists, return the utility from the tuple.
+        self.consolidatedStates = self.readStateFile()
+
+        for state in self.consolidatedStates:
+            print(state)
     
     ##
     #getPlacement
@@ -144,7 +149,7 @@ class AIPlayer(Player):
                 'move' : move,
                 'state' : newState,
                 'depth' : 1,
-                'eval' : self.utility(newState),
+                'eval' : self.processGamestate(newState),
                 'parent': currentState
             }
                 
@@ -153,7 +158,6 @@ class AIPlayer(Player):
         
         #get the move with the best eval through the nodeList
         highestUtil = self.bestMove(nodeList)
-
 
         #return the move with the highest evaluation
         return highestUtil['move']
@@ -178,7 +182,7 @@ class AIPlayer(Player):
     # This agent doens't learn
     #
     def registerWin(self, hasWon):
-        pass
+        self.outputStates()
         #get reward based on if it has won or not
 
     ##
@@ -195,6 +199,7 @@ class AIPlayer(Player):
     #Return: the "guess" of how good the game state is
     ##
     def utility(self, currentState):
+
         WEIGHT = 10 #weight value for moves
 
         #will modify this toRet value based off of gamestate
@@ -293,7 +298,7 @@ class AIPlayer(Player):
             if (node['eval'] > bestNode['eval']):
                 bestNode = node
 
-        return 
+        return bestNode
 
     #categorizeState
     #
@@ -399,6 +404,67 @@ class AIPlayer(Player):
 
         return min(foodDist)
 
+    #processGamestate
+    #
+    #Description: returns a utility of a consolidated state
+    #
+    #Parameters:
+    #   currentState
+    #
+    #return: utility (float)
+    def processGamestate(self, currentState):
+        category = self.categorizeState(currentState)
+
+        for state in self.consolidatedStates:
+            if category == state[0]:
+                return state[1]
+        
+        #if we don't find it, add to the list
+        utility = self.utility(currentState)
+
+        self.consolidatedStates.append((category, utility))
+
+        return utility
+
+    #readStateFile
+    #
+    #Description: reads contents of the states file into a list
+    #
+    #Parameters:
+    #   
+    #
+    #return: list
+    def readStateFile(self):
+        stateUtilList = []
+
+        path = Path("./vinoya21_lauw22_states.txt")
+
+        if path.is_file():
+            f = open(path, 'r')
+            contents = f.read().splitlines()
+            for line in contents:
+                stateUtil = ast.literal_eval(line)
+                stateUtilList.append(stateUtil)
+            f.close()
+
+        return stateUtilList
+
+    #outputStates
+    #
+    #Description: outputs the consolidated states to the text file
+    #
+    #Parameters:
+    #   
+    #
+    #return: utility (float)
+    def outputStates(self):
+        f = open("AI/vinoya21_lauw22_states.txt", "w")
+        f.truncate(0)
+        for tuple in self.consolidatedStates:
+            f.write(str(tuple) + "\n")
+        f.close()
+        
+
     
 #python -m unittest TDLearning.TDLearningTest
 class TDLearningTest(unittest.TestCase):
@@ -412,11 +478,8 @@ class TDLearningTest(unittest.TestCase):
 
         player.consolidatedStates.append((category, util))
 
-        print(player.consolidatedStates)
+        #print(player.consolidatedStates)
         
-        
-
-
     def testQueenOnBldg(self):
         player = AIPlayer(0)
         gameState = GameState.getBasicState()
