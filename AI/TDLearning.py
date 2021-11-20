@@ -463,6 +463,17 @@ class AIPlayer(Player):
         for tuple in self.consolidatedStates:
             f.write(str(tuple) + "\n")
         f.close()
+
+    #+100 for win -100 for losing +1 food count goes up or -1 food count goes down . -10 when ant dies ... strategies +10 when enemy dies / Reward +1 reward for when worker gains a food / state when agent has 2 workers or more than 2 workers penalty favor states/ examples...
+        #alpha 0.1
+        # discount factor - 0.8
+        # explore and exploit - simple 0.01 chance to take a action or 0.05 implementation
+        # Q learning - works but takes longer time (state and action i know next state) utilty of s prime / utility learning
+        #     Q(s,a) = Q(s,a) + alpha * [ R(s) + discount * U(s') - Q(s,a)]
+        #  start with reward function / then do tdlearning funciton
+        # huge table with a lot of new states
+        # output a 1 or 0 if we win or lose
+        # power law of learning
         
 
     
