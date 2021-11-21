@@ -513,6 +513,8 @@ class AIPlayer(Player):
         # output a 1 or 0 if we win or lose
         # power law of learning
         
+    def qLearning(self, currentState, discount_factor = 0.8, alpha = 0.1, epsilon = 0.1):
+        return
 
     
 #python -m unittest TDLearning.TDLearningTest
