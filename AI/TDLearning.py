@@ -52,9 +52,6 @@ class AIPlayer(Player):
         #maybe make a function that gets a categorized state, adds it to the list if it doesn't exist, and returns utility
         #if it already exists, return the utility from the tuple.
         self.consolidatedStates = self.readStateFile()
-
-        for state in self.consolidatedStates:
-            print(state)
     
     ##
     #getPlacement
@@ -299,6 +296,47 @@ class AIPlayer(Player):
                 bestNode = node
 
         return bestNode
+        
+    def getReward(self, hasWon):
+        if hasWon:
+            return 1
+        if not hasWon:
+            return -1
+        else:
+            return -0.01
+    
+    #Temporal Difference Learning
+    #
+    #Description: 
+    #
+    #Parameters: 
+    #
+    #return:
+    def TDlearning():
+        #Initialize the parameters 
+        gamma = -1
+        rewardSize = -1
+        gridSize = 4
+        alpha = 0.5
+        terminationStates = [0,0]
+        
+        #
+        #for it in tqdm(range(numIterations)):
+
+        
+    
+
+        return 
+
+    #Calculate the temporal differenc error 
+    def TDError(self, k, t):
+
+        return 
+    
+    def updateCurrentTD(self, k, t):
+
+        return 
+
 
     #categorizeState
     #
@@ -488,8 +526,6 @@ class TDLearningTest(unittest.TestCase):
         util = player.utility(gameState)
 
         player.consolidatedStates.append((category, util))
-
-        #print(player.consolidatedStates)
         
     def testQueenOnBldg(self):
         player = AIPlayer(0)
