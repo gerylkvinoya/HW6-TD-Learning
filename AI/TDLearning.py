@@ -338,6 +338,9 @@ class AIPlayer(Player):
         return 
 
 
+
+    
+
     #categorizeState
     #
     #Description: catergorizes a state based off of certain information in the state
@@ -513,8 +516,34 @@ class AIPlayer(Player):
         # output a 1 or 0 if we win or lose
         # power law of learning
         
+    #qLearning
+    #
+    #Description: qLearning TD algorithm
+    #
+    #Parameters: self, currentState, discount_factor = 0.8, alpha = 0.1, epsilon = 0.1
+    #
+    #return: utility (float)
     def qLearning(self, currentState, discount_factor = 0.8, alpha = 0.1, epsilon = 0.1):
-        return
+        reward = 0
+        currentFoodCount = currentState.inventories[self].foodCount
+        currentMySoldier = currentState.inventories[self].mySoldier
+        print(currentFoodCount)
+        
+        if currentFoodCount < currentState.inventories[self].foodCount:
+            reward += 1
+        if currentFoodCount > currentState.inventories[self].foodCount:
+            reward -= 1
+        if currentMySoldier < currentState.inventories[self].mySoldier:
+            reward += 10
+        if currentMySoldier > currentState.inventories[self].mySoldier:
+            reward += 10
+
+        return reward
+
+        #foodCount = currentState.inventories[me].foodCount
+       # toRet = toRet + foodCount
+    
+
 
     
 #python -m unittest TDLearning.TDLearningTest
