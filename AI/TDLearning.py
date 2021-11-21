@@ -52,6 +52,9 @@ class AIPlayer(Player):
         #maybe make a function that gets a categorized state, adds it to the list if it doesn't exist, and returns utility
         #if it already exists, return the utility from the tuple.
         self.consolidatedStates = self.readStateFile()
+        
+        reward = self.qLearning
+        print(reward)
     
     ##
     #getPlacement
@@ -525,21 +528,33 @@ class AIPlayer(Player):
     #return: utility (float)
     def qLearning(self, currentState, discount_factor = 0.8, alpha = 0.1, epsilon = 0.1):
         reward = 0
-        currentFoodCount = currentState.inventories[self].foodCount
-        currentMySoldier = currentState.inventories[self].mySoldier
+        me = currentState.whooseTurn
+        currentFoodCount = currentState.inventories[me].foodCount
+        currentMySoldier = currentState.inventories[me].mySoldier
         print(currentFoodCount)
-        
-        if currentFoodCount < currentState.inventories[self].foodCount:
+
+        if currentFoodCount < currentState.inventories[me].foodCount:
             reward += 1
-        if currentFoodCount > currentState.inventories[self].foodCount:
+        if currentFoodCount > currentState.inventories[me].foodCount:
             reward -= 1
-        if currentMySoldier < currentState.inventories[self].mySoldier:
+        if currentMySoldier < currentState.inventories[me].mySoldier:
             reward += 10
-        if currentMySoldier > currentState.inventories[self].mySoldier:
+        if currentMySoldier > currentState.inventories[me].mySoldier:
             reward += 10
+        
 
         return reward
 
+    '''
+    category = {
+                'foodCount' : currentState.inventories[me].foodCount, #my current food count
+                'queenOnBldg' : self.queenOnBldg(myQueen, myTunnel, myAnthill), #true if queen is on a my tunnel/anthill, false if not
+                'mySoldier' : len(mySoldiers), #number of workers
+                'workerCount' : len(myWorkerList), #number of soldiers
+                'carryingWorkerDist' : self.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), #minimum distance that any carrying worker is from a building
+                'nonCarryingWorkerDist': self.nonCarryingWorkerDist(myWorkerList, myFoodList) #minimum distance that any non carrying worker is from any of my food
+            }
+    '''
         #foodCount = currentState.inventories[me].foodCount
        # toRet = toRet + foodCount
     
@@ -548,6 +563,10 @@ class AIPlayer(Player):
     
 #python -m unittest TDLearning.TDLearningTest
 class TDLearningTest(unittest.TestCase):
+
+    def testqLearning(self):
+        player = AIPlayer(0)
+        gameState = GameState.getBasicState()
 
     def testCategorizeState(self):
         player = AIPlayer(0)
