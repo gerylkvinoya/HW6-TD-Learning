@@ -23,6 +23,14 @@ import numpy as np
 from pathlib import Path
 import ast
 
+#Q-Learning Libraries
+import numpy as np
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_style("darkgrid")
+#%pylab inline
+import random
 
 ##
 #AIPlayer
@@ -308,28 +316,6 @@ class AIPlayer(Player):
         else:
             return -0.01
     
-    #Temporal Difference Learning
-    #
-    #Description: 
-    #
-    #Parameters: 
-    #
-    #return:
-    def TDlearning():
-        #Initialize the parameters 
-        gamma = -1
-        rewardSize = -1
-        gridSize = 4
-        alpha = 0.5
-        terminationStates = [0,0]
-        
-        #
-        #for it in tqdm(range(numIterations)):
-
-        
-    
-
-        return 
 
     #Calculate the temporal differenc error 
     def TDError(self, k, t):
@@ -518,6 +504,47 @@ class AIPlayer(Player):
         # huge table with a lot of new states
         # output a 1 or 0 if we win or lose
         # power law of learning
+#get bext state aversaryial
+# utility of 
+    '''
+    1. Gen all possible next states (1 action)
+    2. Find the action -> state w/ best util (breaktie:random)
+    3. Epsilon chance of picking a random action instead
+    4. Update value of current state with TD learning
+    U(A) = U(A) + alpha[R(A) + discount Utility(B)- ultitlity(A)]
+    5. Take selected action & go to ste 1
+
+    Reward function
+    returns the utility
+    categorization
+    
+
+    +10 for food
+    +5 carry food
+    +5 enemy ant count goes down
+    '''
+    
+    #Temporal Difference Learning
+    #
+    #Description: 
+    #
+    #Parameters: 
+    #
+    #return:
+    def TDlearning():
+        #Initialize the parameters 
+        gamma = -1
+        rewardSize = -1
+        gridSize = 4
+        alpha = 0.5
+        terminationStates = [0,0]
+        
+        #
+        #for it in tqdm(range(numIterations)):
+
+    
+
+        return 
         
     #qLearning
     #
@@ -544,6 +571,102 @@ class AIPlayer(Player):
         
 
         return reward
+
+    class QLearn:
+        #Initializes the agent.
+        def __init__(self, currentState,  actions=[1,2,3,4,5,6,7,8,9,10], state=15, action=1, discount=0.999, lamb=0.9):  
+            self.actions = actions
+            self.state = currentState
+            self.action = action
+            self.discount = discount
+            self.lamb = lamb
+            self.visits = {}
+            self.history = {}
+                # Gets the reward realized at a given state and action, along with the new state
+    def getNextState(self, sold):
+        newstate = self.state - sold
+        if newstate < 0:
+            newstate = 0
+        return newstate
+
+    # Multiply sold and price to get revenue reward
+    def getReward(self, sold):
+        if sold > self.state:
+            reward = self.state * self.action
+        else:
+            reward = self.action * sold
+        return reward
+
+    # Gets the q value for a given state for the given k and t
+    def getQ(self, k, t, state, action):
+        return self.q[(k, t)].get((state, action), 0.0)
+
+    # Gets the eligibility trace for a given state for the given k and t
+    def getET(self, k, t, state,action):
+        return self.et[(k, t)].get((state, action), 0.0)
+
+    # Choose which action to take in the next time period
+    def chooseAction(self, k, t):
+        # Decide if to explore or exploit
+        if random.random() < (1/float(k)):
+            # Exploring, so a random action is chosen
+            newaction = random.choice(self.actions)
+            explore = True
+            self.history[t] = (self.state, self.action)
+        else:
+            # Get a list of Q values for every action
+            q = [self.getQ(k, t+1, self.nextState, action) for action in self.actions]
+            maxQ = max(q)
+            count = q.count(maxQ)
+            # If there are two Q values that are the same, choose a random one
+            if count > 1:
+                best = [i for i in range(len(self.actions)) if q[i] == maxQ]
+                i = random.choice(best)
+                explore = False
+            else:
+                i = q.index(maxQ)
+                explore = False
+            newaction = self.actions[i]
+            # Record decision for k and t in history
+            self.history[t] = (self.state, self.action)
+        return newaction, explore
+
+    # Calculate the temporal difference error
+    def TDError(self, k, t):
+        if t == 10:
+            delta = self.reward + self.discount * 0 - self.getQ(k, t, self.state, self.action)
+        else:
+            delta = self.reward + self.discount * self.getQ(k, t+1, self.nextState,
+                        self.nextAction) - self.getQ(k, t, self.state, self.action)
+        return delta
+
+    # Update the eligibility trace for the current state
+    def updateCurrentET(self, k, t, state, action):
+        self.et[(k, t)][(state, action)] = 1
+
+    # Update the Q values for the next episode for all state-action pairs used during this episode
+    def updateQs(self, k, t):
+        for i in range(t, 0, -1):
+            self.q[(k+1, t)][self.history[i]] = self.q[(k, i)].get(self.history[i], 0) + \
+                (1 / float(1 + self.visits.get(self.history[i], 0))) * self.tdError * \
+                self.et[t].get(self.history[i], 0)
+
+    # Update the eligibility traces for all state-action pairs used in the episode
+    def updateETs(self, k, t):
+        # Set all to zero if exploration
+        if self.explore:
+            for i in range(t, 0, -1):
+                self.et[t+1][self.history[i]] = 0
+        else:
+            for i in range(t-1, 0, -1):
+                self.et[t+1][self.history[i]] = self.lamb * self.et[t].get(self.history[i], 0.0)
+
+    # Assign the next state and action to the current state and action
+    def stepForward(self):
+        self.state = self.nextState
+        self.action = self.nextAction
+
+
 
     '''
     category = {
