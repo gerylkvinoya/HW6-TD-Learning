@@ -701,22 +701,75 @@ class AIPlayer(Player):
     def stepForward(self):
         self.state = self.nextState
         self.action = self.nextAction
+        self.ifGameOver
 
 
-
-    '''
-    category = {
-                'foodCount' : currentState.inventories[me].foodCount, #my current food count
-                'queenOnBldg' : self.queenOnBldg(myQueen, myTunnel, myAnthill), #true if queen is on a my tunnel/anthill, false if not
-                'mySoldier' : len(mySoldiers), #number of workers
-                'workerCount' : len(myWorkerList), #number of soldiers
-                'carryingWorkerDist' : self.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), #minimum distance that any carrying worker is from a building
-                'nonCarryingWorkerDist': self.nonCarryingWorkerDist(myWorkerList, myFoodList) #minimum distance that any non carrying worker is from any of my food
-            }
-    '''
-        #foodCount = currentState.inventories[me].foodCount
-       # toRet = toRet + foodCount
+    #Reward helper function will determine if the game is over and who the winner is
+    def ifGameOver(currentState):
+        playerWon = getWinner(currentState) # 1 = current player won, 2 = opp. player won
+        if (playerWon == 1):
+            gameOver = True
+            return 1
     
+        if (playerWon == 0):
+            gameOver = True
+            return 0 
+        
+        if (playerWon == None):
+            gameOver = False
+            return None
+
+        return
+
+#ask who current is in Python code
+    ##
+    # getWinner
+    #
+    # Parameters:
+    #       currentState: a gameState of the current state of the game
+    #
+    # Return:
+    #       1  - (int) the player of the current turn has won
+    #       0  - (int) the opponent of the player of the current turn has won
+    #    None  - (null) no player has won
+    #
+def getWinner(currentState):
+        myId = currentState.whoseTurn
+        enemyId = 1 - myId
+
+        myInv = currentState.inventories[myId]
+        enemyInv = currentState.inventories[enemyId]
+
+        myQueen = myInv.getQueen()
+        myAntHill = myInv.getAnthill()
+        myFoodCount = myInv.foodCount
+
+        enemyQueen = enemyInv.getQueen()
+        enemyAntHill = enemyInv.getAnthill()
+        enemyFoodCount = enemyInv.foodCount
+
+        if enemyAntHill.captureHealth <= 0 or myFoodCount >= FOOD_GOAL or enemyQueen is None or (enemyFoodCount == 0 and len(enemyInv.ants) == 1):
+            return 1
+
+        if myAntHill.captureHealth <= 0 or enemyFoodCount >= FOOD_GOAL or myQueen is None or (myFoodCount == 0 and len(myInv.ants) == 1):
+            return 0
+
+        return None
+
+
+        '''
+        category = {
+                    'foodCount' : currentState.inventories[me].foodCount, #my current food count
+                    'queenOnBldg' : self.queenOnBldg(myQueen, myTunnel, myAnthill), #true if queen is on a my tunnel/anthill, false if not
+                    'mySoldier' : len(mySoldiers), #number of workers
+                    'workerCount' : len(myWorkerList), #number of soldiers
+                    'carryingWorkerDist' : self.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), #minimum distance that any carrying worker is from a building
+                    'nonCarryingWorkerDist': self.nonCarryingWorkerDist(myWorkerList, myFoodList) #minimum distance that any non carrying worker is from any of my food
+                }
+        '''
+            #foodCount = currentState.inventories[me].foodCount
+        # toRet = toRet + foodCount        
+
 
 
     
