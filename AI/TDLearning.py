@@ -22,6 +22,7 @@ import unittest
 import numpy as np
 from pathlib import Path
 import ast
+import json
 
 
 ##
@@ -51,7 +52,9 @@ class AIPlayer(Player):
         #(categorizedState, utility)
         #maybe make a function that gets a categorized state, adds it to the list if it doesn't exist, and returns utility
         #if it already exists, return the utility from the tuple.
-        self.consolidatedStates = self.readStateFile()
+        self.states = self.readStateFile()
+
+
     
     ##
     #getPlacement
@@ -68,7 +71,6 @@ class AIPlayer(Player):
     #Return: The coordinates of where the construction is to be placed
     ##
     def getPlacement(self, currentState):
-        self.gameStateList = []
         numToPlace = 0
         #implemented by students to return their next move
         if currentState.phase == SETUP_PHASE_1:    #stuff on my side
@@ -118,48 +120,37 @@ class AIPlayer(Player):
     #Return: The Move to be made
     ##
     def getMove(self, currentState):
+        moves = listAllLegalMoves(currentState)
+        
+        #this ensures that the current state is in the dict
+        #currentUtility might not be used
+        currentUtility = self.getStateUtility(currentState)
 
-        #self.move = Move
-        #self.nextState = Gamestate
-        #self.depth = 1
-        #self.eval = Utility + self.depth
-        #self.parent = None
-
-        #create lists of all the moves and gameStates
-        allMoves = listAllLegalMoves(currentState)
-        self.gameStateList.append(currentState)
         stateList = []
-        nodeList = []
+        for move in moves:
+            stateList.append(getNextStateAdversarial(currentState, move))
 
-        #for each move, get the resulting gamestate if we make that move and add it to the list
-        for move in allMoves:
+        utilityList = []
+        for state in stateList:
+            utilityList.append(self.getStateUtility(state))
 
-            if move.moveType == "END_TURN":
-                continue
+        #get best utility from list
+        bestUtil = max(utilityList)
+        bestUtilIndex = utilityList.index(bestUtil)
 
-            newState = getNextState(currentState, move)
+        moveToMake = moves[bestUtilIndex]
+        newState = stateList[bestUtilIndex]
 
-        
-            stateList.append(newState)
+        if random.uniform(0, 1) < 0.05:
+            moveToMake = random.choice(moves)
+            randomIndex = moves.index(moveToMake)
+            newState = stateList[randomIndex]
 
-            node = {
-                'move' : move,
-                'state' : newState,
-                'depth' : 1,
-                'eval' : self.processGamestate(newState),
-                'parent': currentState
-            }
-                
-            
-            nodeList.append(node)
-        
-        #get the move with the best eval through the nodeList
-        highestUtil = self.bestMove(nodeList)
+        self.updateStateUtility(currentState, newState, self.getReward(newState, 0))
 
-        #return the move with the highest evaluation
-        return highestUtil['move']
+        return moveToMake
 
-    
+
     ##
     #getAttack
     #Description: Gets the attack to be made from the Player
@@ -179,165 +170,31 @@ class AIPlayer(Player):
     # This agent doens't learn
     #
     def registerWin(self, hasWon):
+        #need to update the current state's utility
+
         self.outputStates()
         #get reward based on if it has won or not
-
-    ##
-    #utility
-    #Description: examines GameState object and returns a heuristic guess of how
-    #               "good" that game state is on a scale of 0 to 1
+        
+    #reward
     #
-    #               a player will win if his opponent’s queen is killed, his opponent's
-    #               anthill is captured, or if the player collects 11 units of food
+    #Description: the reward function for TD learning
     #
     #Parameters:
-    #   currentState - The state of the current game waiting for the player's move (GameState)
-    #
-    #Return: the "guess" of how good the game state is
-    ##
-    def utility(self, currentState):
-
-        WEIGHT = 10 #weight value for moves
-
-        #will modify this toRet value based off of gamestate
-        toRet = 0
-
-        #get my id and enemy id
-        me = currentState.whoseTurn
-        enemy = 1 - me
-
-        #get the values of the anthill, tunnel, and foodcount
-        myTunnel = getConstrList(currentState, me, (TUNNEL,))[0]
-        myAnthill = getConstrList(currentState, me, (ANTHILL,))[0]
-        myFoodList = getConstrList(currentState, 2, (FOOD,))
-        enemyTunnel = getConstrList(currentState, enemy, (TUNNEL,))[0]
-
-        #get my soldiers and workers
-        mySoldiers = getAntList(currentState, me, (SOLDIER,))
-        myWorkerList = getAntList(currentState, me, (WORKER,))
-
-        #get enemy worker and queen
-        enemyWorkerList = getAntList(currentState, enemy, (WORKER,))
-        enemyQueenList = getAntList(currentState, enemy, (QUEEN,))
-
-        for worker in myWorkerList:
-
-            #if a worker is carrying food, go to tunnel
-            if worker.carrying:
-                tunnelDist = stepsToReach(currentState, worker.coords, myTunnel.coords)
-
-                toRet = toRet + (1 / (tunnelDist + (4 * WEIGHT)))
-
-                #add to the eval if a worker is carrying food
-                toRet = toRet + (1 / WEIGHT)
-
-            #if a worker isn't carrying food, get to the food
-            else:
-                foodDist = 1000
-                for food in myFoodList:
-                    # Updates the distance if its less than the current distance
-                    dist = stepsToReach(currentState, worker.coords, food.coords)
-                    if (dist < foodDist):
-                        foodDist = dist
-                toRet = toRet + (1 / (foodDist + (4 * WEIGHT)))
-        
-        #try to get only 1 worker
-        if len(myWorkerList) == 1:
-            toRet = toRet + (2 / WEIGHT)
-        
-        #try to get only one soldier
-        if len(mySoldiers) == 1:
-            toRet = toRet + (WEIGHT * 0.2)
-            enemyWorkerLength = len(enemyWorkerList)
-            enemyQueenLength = len(enemyQueenList)
-            
-            #we want the soldier to go twoards the enemy tunnel/workers
-            if enemyWorkerList:
-                distToEnemyWorker = stepsToReach(currentState, mySoldiers[0].coords, enemyWorkerList[0].coords)
-                #distToEnemyTunnel = stepsToReach(currentState, mySoldiers[0].coords, enemyTunnel.coords)
-                toRet = toRet + (1 / (distToEnemyWorker + (WEIGHT * 0.2)))# + (1 / (distToEnemyTunnel + (WEIGHT * 0.5)))
-            
-            #reward the agent for killing enemy workers
-            #try to kill the queen if enemy workers dead
-            else:
-                toRet = toRet + (2 * WEIGHT)
-                if enemyQueenLength > 0:
-                    enemyQueenDist = stepsToReach(currentState, mySoldiers[0].coords, enemyQueenList[0].coords)
-                    toRet = toRet + (1 / (1 + enemyQueenDist))
-            
-
-            toRet = toRet + (1 / (enemyWorkerLength + 1)) + (1 / (enemyQueenLength + 1))
-
-        #try to get higher food score
-        foodCount = currentState.inventories[me].foodCount
-        toRet = toRet + foodCount
-
-        #set the correct bounds for the toRet
-        toRet = 1 - (1 / (toRet + 1))
-        if toRet <= 0:
-            toRet = 0.01
-        if toRet >= 1:
-            toRet = 0.99
-
-        return toRet
-
-    #bestMove
-    #
-    #Description: goes through each node in a list and finds the one with the 
-    #highest evaluation
-    #
-    #Parameters: nodeList - the list of nodes you want to find the best eval for
+    #   currentState - current state of the game (unused for now)
+    #   hasWon - INTEGER value to determine if game is over, or in progress
+    #       1 if won
+    #       -1 if lost
+    #       0 if nothing
     #
     #return: the node with the best eval
-    def bestMove(self, nodeList):
-        bestNode = nodeList[0]
-        for node in nodeList:
-            if (node['eval'] > bestNode['eval']):
-                bestNode = node
-
-        return bestNode
-        
-    def getReward(self, hasWon):
-        if hasWon:
+    def getReward(self, currentState, hasWon):
+        if hasWon == 1:
             return 1
-        if not hasWon:
+        if hasWon == -1:
             return -1
         else:
             return -0.01
     
-    #Temporal Difference Learning
-    #
-    #Description: 
-    #
-    #Parameters: 
-    #
-    #return:
-    def TDlearning():
-        #Initialize the parameters 
-        gamma = -1
-        rewardSize = -1
-        gridSize = 4
-        alpha = 0.5
-        terminationStates = [0,0]
-        
-        #
-        #for it in tqdm(range(numIterations)):
-
-        
-    
-
-        return 
-
-    #Calculate the temporal differenc error 
-    def TDError(self, k, t):
-
-        return 
-    
-    def updateCurrentTD(self, k, t):
-
-        return 
-
-
     #categorizeState
     #
     #Description: catergorizes a state based off of certain information in the state
@@ -366,14 +223,14 @@ class AIPlayer(Player):
         enemyWorkerList = getAntList(currentState, enemy, (WORKER,))
         enemyQueenList = getAntList(currentState, enemy, (QUEEN,))
 
-        category = {
-                'foodCount' : currentState.inventories[me].foodCount, #my current food count
-                'queenOnBldg' : self.queenOnBldg(myQueen, myTunnel, myAnthill), #true if queen is on a my tunnel/anthill, false if not
-                'mySoldier' : len(mySoldiers), #number of workers
-                'workerCount' : len(myWorkerList), #number of soldiers
-                'carryingWorkerDist' : self.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), #minimum distance that any carrying worker is from a building
-                'nonCarryingWorkerDist': self.nonCarryingWorkerDist(myWorkerList, myFoodList) #minimum distance that any non carrying worker is from any of my food
-            }
+        category = (
+            currentState.inventories[me].foodCount, #my current food count
+            self.queenOnBldg(myQueen, myTunnel, myAnthill), #true if queen is on a my tunnel/anthill, false if not
+            len(mySoldiers), #number of soldiers
+            len(myWorkerList), #number of workers
+            self.carryingWorkerDist(myWorkerList, myTunnel, myAnthill), #minimum distance that any carrying worker is from a building
+            self.nonCarryingWorkerDist(myWorkerList, myFoodList) #minimum distance that any carrying worker is from a building
+        )
 
         return category
 
@@ -442,28 +299,6 @@ class AIPlayer(Player):
 
         return min(foodDist)
 
-    #processGamestate
-    #
-    #Description: returns a utility of a consolidated state
-    #
-    #Parameters:
-    #   currentState
-    #
-    #return: utility (float)
-    def processGamestate(self, currentState):
-        category = self.categorizeState(currentState)
-
-        for state in self.consolidatedStates:
-            if category == state[0]:
-                return state[1]
-        
-        #if we don't find it, add to the list
-        utility = self.utility(currentState)
-
-        self.consolidatedStates.append((category, utility))
-
-        return utility
-
     #readStateFile
     #
     #Description: reads contents of the states file into a list
@@ -473,19 +308,21 @@ class AIPlayer(Player):
     #
     #return: list
     def readStateFile(self):
-        stateUtilList = []
+        stateDict = {}
 
         path = Path("./vinoya21_lauw22_states.txt")
 
         if path.is_file():
             f = open(path, 'r')
-            contents = f.read().splitlines()
-            for line in contents:
-                stateUtil = ast.literal_eval(line)
-                stateUtilList.append(stateUtil)
+            data = f.read()
+            stateDict = ast.literal_eval(data)
+            #contents = f.read().splitlines()
+            #for line in contents:
+            #    stateUtil = ast.literal_eval(line)
+            #    #stateList.append(stateUtil)
             f.close()
 
-        return stateUtilList
+        return stateDict
 
     #outputStates
     #
@@ -498,9 +335,52 @@ class AIPlayer(Player):
     def outputStates(self):
         f = open("AI/vinoya21_lauw22_states.txt", "w")
         f.truncate(0)
-        for tuple in self.consolidatedStates:
-            f.write(str(tuple) + "\n")
+        #for element in self.states:
+        #   f.write(str(element) + "\n")
+        f.write(str(self.states))
         f.close()
+
+    #updateStateUtility
+    #
+    #Description: updates the utility of a state
+    #             using equation U(A) = U(A) + alpha[R(A) + discount*U(B) - U(A)]
+    #
+    #Parameters:
+    #   parentState - the previous state we are coming from
+    #   currentState - the current state to evaluate
+    #
+    #return: None
+    def updateStateUtility(self, parentState, currentState, reward):
+        category = self.categorizeState(currentState)
+        previousUtil = self.getStateUtility(currentState)
+        parentUtil = self.getStateUtility(parentState)
+
+        newUtil = previousUtil + self.learningRate*(reward + (self.discountFactor*parentUtil) - previousUtil)
+
+        #because we're calling getStateUtility on currentState, we know that the category exists in the dictionary
+        self.states[category] = newUtil
+
+        return
+
+    #getStateUtility
+    #
+    #Description: gets the utility of a state
+    #
+    #Parameters:
+    #   currentState - the current state to get the utility from in self.states
+    #
+    #return: the state's utility from the dict
+    def getStateUtility(self, currentState):
+        category = self.categorizeState(currentState)
+
+        if category in self.states:
+            return self.states[category]
+
+        #if we don't find it, add to the dict
+        utility = 0.0
+        self.states[category] = utility
+
+        return utility
 
     #+100 for win -100 for losing +1 food count goes up or -1 food count goes down . -10 when ant dies ... strategies +10 when enemy dies / Reward +1 reward for when worker gains a food / state when agent has 2 workers or more than 2 workers penalty favor states/ examples...
         #alpha 0.1
@@ -512,6 +392,32 @@ class AIPlayer(Player):
         # huge table with a lot of new states
         # output a 1 or 0 if we win or lose
         # power law of learning
+
+    #Questions to ask:
+    #How is the reward function going to work? Is it only used at the end of the game?
+    #I am trying to save a q table to a file but can't. I previously saved each categorized state and utility and was successful but was unable to do it for a state/action pair
+    #I understand what the idea of Q learning is, but confused about the actual Q table and how/when it should be updated
+    #Ask to walk through the Q learning algorithm like in the textbook
+
+    #get all moves, get next state
+    #initialize all nextstates
+    #generate all possible next states (with an action)
+    #What's the utility of each state, should be initialized at 0
+    #find the action leading to a state with the best utility (if tie, choose random)
+    #no more than 5% chance to pick a random action for exploration
+    #
+    #update value of currentState w/ TDLearning
+    #Going from state A to B, taking action a
+    #U(A) = U(A) + alpha[R(A) + discount* U(B) - U(A)]
+    #take the action selected and go to step 1
+    #reward function
+    #maybe +100 for win -100 for lose +10 for food++, +5 every time ant carry, +5 enemy at count--
+    #use get nextstateadversarial
+
+    #for each nextState, add to list of states
+    #for each state, calculate utilities and add to list of utilities
+
+    
         
 
     
@@ -523,9 +429,9 @@ class TDLearningTest(unittest.TestCase):
         gameState = GameState.getBasicState()
 
         category = player.categorizeState(gameState)
-        util = player.utility(gameState)
+        #util = player.utility(gameState)
 
-        player.consolidatedStates.append((category, util))
+        #player.consolidatedStates.append((category, util))
         
     def testQueenOnBldg(self):
         player = AIPlayer(0)
@@ -602,3 +508,32 @@ class TDLearningTest(unittest.TestCase):
         myWorkerList.append(worker2)
 
         self.assertEqual(player.nonCarryingWorkerDist(myWorkerList, foodList), 1)
+
+    def testGetReward(self):
+        player = AIPlayer(0)
+        currentState = GameState.getBasicState()
+
+        self.assertEqual(player.getReward(currentState, 1), 1)
+        self.assertEqual(player.getReward(currentState, -1), -1)
+        self.assertEqual(player.getReward(currentState, 0), -0.01)
+
+    def testGetStateUtility(self):
+        player = AIPlayer(0)
+        currentState = GameState.getBasicState()
+
+        self.assertEqual(player.getStateUtility(currentState), 0.0)
+
+    def testUpdateStateUtility(self):
+        player = AIPlayer(0)
+        currentState = GameState.getBasicState()
+
+        moves = listAllLegalMoves(currentState)
+        #print(player.categorizeState(currentState))
+        #use the first move in the list
+        newState = getNextStateAdversarial(currentState, moves[0])
+        #print(player.categorizeState(newState))
+
+        player.updateStateUtility(currentState, newState, player.getReward(newState, 0))
+
+        #print(player.states)
+        #print(player.states[player.categorizeState(newState)])
