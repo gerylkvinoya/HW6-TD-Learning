@@ -504,25 +504,61 @@ class AIPlayer(Player):
         # huge table with a lot of new states
         # output a 1 or 0 if we win or lose
         # power law of learning
-#get bext state aversaryial
-# utility of 
-    '''
-    1. Gen all possible next states (1 action)
-    2. Find the action -> state w/ best util (breaktie:random)
-    3. Epsilon chance of picking a random action instead
-    4. Update value of current state with TD learning
-    U(A) = U(A) + alpha[R(A) + discount Utility(B)- ultitlity(A)]
-    5. Take selected action & go to ste 1
+        #get bext state aversaryial
+        # utility of 
+        '''
+        1. Gen all possible next states (1 action)
+        2. Find the action -> state w/ best util (breaktie:random)
+        3. Epsilon chance of picking a random action instead
+        4. Update value of current state with TD learning
+        U(A) = U(A) + alpha[R(A) + discount Utility(B)- ultitlity(A)]
+        5. Take selected action & go to ste 1
 
-    Reward function
-    returns the utility
-    categorization
-    
+        Reward function
+        returns the utility
+        categorization
 
-    +10 for food
-    +5 carry food
-    +5 enemy ant count goes down
+
+        +10 for food
+        +5 carry food
+        +5 enemy ant count goes down
+        '''
+    '''allActions = listAllLegalMove(currState);
+    allStates = []
+    for act in allActions:
+    allStates.append(getNextStateAdversarial(act))
+    allUtils = []
+    for state in allStates:
+    allUtils.append(getUtil(state))
+
+
+
+    bestAction = allActions[0]
+    bestState = allStates[0]
+    bestUtil = allUtils[0]
+    for i in range(len(allStates)):
+    if allUtils[i] > bestUtil:
+    bestUtil = allUtils[i]
+    bestAction = allActions[i]
+    bestState = allStates[i]
+
+
+
+    if (rand() < 0.05):
+    bestAction = random choice from allActions
+    bestState = correponding state for above
+
+
+
+    Apply the TD-Learning equation to update the value of currState's utility
+    using the Reward(currState) and getUtil(bestState)
+
+
+
+    return bestAction
     '''
+
+
     
     #Temporal Difference Learning
     #
