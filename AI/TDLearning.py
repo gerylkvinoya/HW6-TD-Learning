@@ -713,11 +713,11 @@ class AIPlayer(Player):
     
         if (playerWon == 0):
             gameOver = True
-            return 0 
+            return -1
         
         if (playerWon == None):
             gameOver = False
-            return None
+            return -0.001
 
         return
 
