@@ -145,7 +145,7 @@ class AIPlayer(Player):
             moveToMake = randomValue[2]
             newState = randomValue[0]
 
-        self.updateStateUtility(currentState, newState, self.getReward(newState))
+        self.updateStateUtility(currentState, newState, self.getReward(currentState))
 
         return moveToMake
 
@@ -192,12 +192,95 @@ class AIPlayer(Player):
     def getReward(self, currentState):
         winner = getWinner(currentState)
         if winner == 1:
-            return 2
+            return 100
 
         if winner == 0:
-            return -2
+            return -100
 
-        return -0.01        
+        return self.rewardUtility(currentState)       
+
+    def rewardUtility(self, currentState):
+        WEIGHT = 10 #weight value for moves
+
+        #will modify this toRet value based off of gamestate
+        toRet = 0
+
+        #get my id and enemy id
+        me = currentState.whoseTurn
+        enemy = 1 - me
+
+        #get the values of the anthill, tunnel, and foodcount
+        myTunnel = getConstrList(currentState, me, (TUNNEL,))[0]
+        myAnthill = getConstrList(currentState, me, (ANTHILL,))[0]
+        myFoodList = getConstrList(currentState, 2, (FOOD,))
+        enemyTunnel = getConstrList(currentState, enemy, (TUNNEL,))[0]
+
+        #get my soldiers and workers
+        mySoldiers = getAntList(currentState, me, (SOLDIER,))
+        myWorkerList = getAntList(currentState, me, (WORKER,))
+
+        #get enemy worker and queen
+        enemyWorkerList = getAntList(currentState, enemy, (WORKER,))
+        enemyQueenList = getAntList(currentState, enemy, (QUEEN,))
+
+        for worker in myWorkerList:
+
+            #if a worker is carrying food, go to tunnel
+            if worker.carrying:
+                tunnelDist = stepsToReach(currentState, worker.coords, myTunnel.coords)
+                #anthillDist = stepsToReach(currentState, worker.coords, myAnthill.coords)
+
+                #if tunnelDist <= anthillDist:
+                toRet = toRet + (1 / (tunnelDist + (4 * WEIGHT)))
+                #else:
+                    #toRet = toRet + (1 / (anthillDist + (4 * WEIGHT)))
+
+                #add to the eval if a worker is carrying food
+                toRet = toRet + (1 / WEIGHT)
+
+            #if a worker isn't carrying food, get to the food
+            else:
+                foodDist = 1000
+                for food in myFoodList:
+                    # Updates the distance if its less than the current distance
+                    dist = stepsToReach(currentState, worker.coords, food.coords)
+                    if (dist < foodDist):
+                        foodDist = dist
+                toRet = toRet + (1 / (foodDist + (4 * WEIGHT)))
+        
+        #try to get only 1 worker
+        if len(myWorkerList) == 1:
+            toRet = toRet + (2 / WEIGHT)
+        
+
+        #try to get only one soldier
+        if len(mySoldiers) == 1:
+            toRet = toRet + (WEIGHT * 0.2)
+            enemyWorkerLength = len(enemyWorkerList)
+            enemyQueenLength = len(enemyQueenList)
+            
+            #we want the soldier to go twoards the enemy tunnel/workers
+            if enemyWorkerList:
+                distToEnemyWorker = stepsToReach(currentState, mySoldiers[0].coords, enemyWorkerList[0].coords)
+                distToEnemyTunnel = stepsToReach(currentState, mySoldiers[0].coords, enemyTunnel.coords)
+                toRet = toRet + (1 / (distToEnemyWorker + (WEIGHT * 0.2))) + (1 / (distToEnemyTunnel + (WEIGHT * 0.5)))
+            
+            #reward the agent for killing enemy workers
+            #try to kill the queen if enemy workers dead
+            else:
+                toRet = toRet + (2 * WEIGHT)
+                if enemyQueenLength > 0:
+                    enemyQueenDist = stepsToReach(currentState, mySoldiers[0].coords, enemyQueenList[0].coords)
+                    toRet = toRet + (1 / (1 + enemyQueenDist))
+            
+
+            toRet = toRet + (1 / (enemyWorkerLength + 1)) + (1 / (enemyQueenLength + 1))
+
+        #try to get higher food score
+        foodCount = currentState.inventories[me].foodCount
+        toRet = toRet + foodCount
+
+        return toRet 
         
     
     #categorizeState
@@ -353,12 +436,12 @@ class AIPlayer(Player):
     #   currentState - the current state to evaluate
     #
     #return: None
-    def updateStateUtility(self, parentState, currentState, reward):
+    def updateStateUtility(self, currentState, nextState, reward):
         category = self.categorizeState(currentState)
-        previousUtil = self.getStateUtility(currentState)
-        parentUtil = self.getStateUtility(parentState)
+        currentUtil = self.getStateUtility(currentState)
+        nextUtil = self.getStateUtility(nextState)
 
-        newUtil = previousUtil + self.learningRate*(reward + (self.discountFactor*parentUtil) - previousUtil)
+        newUtil = currentUtil + self.learningRate*(reward + (self.discountFactor*nextUtil) - currentUtil)
 
         #because we're calling getStateUtility on currentState, we know that the category exists in the dictionary
         self.states[category] = newUtil
@@ -534,7 +617,9 @@ class TDLearningTest(unittest.TestCase):
         newState = getNextStateAdversarial(currentState, moves[1])
         #print(player.categorizeState(newState))
 
-        player.updateStateUtility(currentState, newState, player.getReward(newState, 0))
+        player.updateStateUtility(currentState, newState, -100)
+
+        
 
         #print(player.states)
         #print(player.states[player.categorizeState(newState)])
