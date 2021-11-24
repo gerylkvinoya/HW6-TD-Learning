@@ -126,27 +126,26 @@ class AIPlayer(Player):
         #currentUtility might not be used
         currentUtility = self.getStateUtility(currentState)
 
-        stateList = []
+        stateUtilityList = []
+
         for move in moves:
-            stateList.append(getNextStateAdversarial(currentState, move))
+            nextState = getNextStateAdversarial(currentState, move)
+            nextUtility = self.getStateUtility(nextState)
+            stateUtilityList.append((nextState, nextUtility, move))
 
-        utilityList = []
-        for state in stateList:
-            utilityList.append(self.getStateUtility(state))
+        #get best utility from list, if there are ties, pick a random one
+        random.shuffle(stateUtilityList)
+        maxValue = max(stateUtilityList, key=lambda x: x[1])
 
-        #get best utility from list
-        bestUtil = max(utilityList)
-        bestUtilIndex = utilityList.index(bestUtil)
-
-        moveToMake = moves[bestUtilIndex]
-        newState = stateList[bestUtilIndex]
+        moveToMake = maxValue[2]
+        newState = maxValue[0]
 
         if random.uniform(0, 1) < 0.05:
-            moveToMake = random.choice(moves)
-            randomIndex = moves.index(moveToMake)
-            newState = stateList[randomIndex]
+            randomValue = random.choice(stateUtilityList)
+            moveToMake = randomValue[2]
+            newState = randomValue[0]
 
-        self.updateStateUtility(currentState, newState, self.getReward(newState, 0))
+        self.updateStateUtility(currentState, newState, self.getReward(newState))
 
         return moveToMake
 
@@ -171,7 +170,10 @@ class AIPlayer(Player):
     #
     def registerWin(self, hasWon):
         #need to update the current state's utility
-
+        if hasWon:
+            print("won")
+        else:
+            print("lost")
         self.outputStates()
         #get reward based on if it has won or not
         
@@ -187,13 +189,16 @@ class AIPlayer(Player):
     #       0 if nothing
     #
     #return: the node with the best eval
-    def getReward(self, currentState, hasWon):
-        if hasWon == 1:
-            return 1
-        if hasWon == -1:
-            return -1
-        else:
-            return -0.01
+    def getReward(self, currentState):
+        winner = getWinner(currentState)
+        if winner == 1:
+            return 2
+
+        if winner == 0:
+            return -2
+
+        return -0.01        
+        
     
     #categorizeState
     #
@@ -315,11 +320,9 @@ class AIPlayer(Player):
         if path.is_file():
             f = open(path, 'r')
             data = f.read()
+
             stateDict = ast.literal_eval(data)
-            #contents = f.read().splitlines()
-            #for line in contents:
-            #    stateUtil = ast.literal_eval(line)
-            #    #stateList.append(stateUtil)
+
             f.close()
 
         return stateDict
@@ -335,9 +338,9 @@ class AIPlayer(Player):
     def outputStates(self):
         f = open("AI/vinoya21_lauw22_states.txt", "w")
         f.truncate(0)
-        #for element in self.states:
-        #   f.write(str(element) + "\n")
+
         f.write(str(self.states))
+
         f.close()
 
     #updateStateUtility
@@ -513,9 +516,7 @@ class TDLearningTest(unittest.TestCase):
         player = AIPlayer(0)
         currentState = GameState.getBasicState()
 
-        self.assertEqual(player.getReward(currentState, 1), 1)
-        self.assertEqual(player.getReward(currentState, -1), -1)
-        self.assertEqual(player.getReward(currentState, 0), -0.01)
+        self.assertEqual(player.getReward(currentState), -0.01)
 
     def testGetStateUtility(self):
         player = AIPlayer(0)
@@ -530,7 +531,7 @@ class TDLearningTest(unittest.TestCase):
         moves = listAllLegalMoves(currentState)
         #print(player.categorizeState(currentState))
         #use the first move in the list
-        newState = getNextStateAdversarial(currentState, moves[0])
+        newState = getNextStateAdversarial(currentState, moves[1])
         #print(player.categorizeState(newState))
 
         player.updateStateUtility(currentState, newState, player.getReward(newState, 0))
