@@ -182,13 +182,9 @@ class AIPlayer(Player):
     #Description: the reward function for TD learning
     #
     #Parameters:
-    #   currentState - current state of the game (unused for now)
-    #   hasWon - INTEGER value to determine if game is over, or in progress
-    #       1 if won
-    #       -1 if lost
-    #       0 if nothing
+    #   currentState - current state of the game
     #
-    #return: the node with the best eval
+    #return: reward value
     def getReward(self, currentState):
         winner = getWinner(currentState)
         if winner == 1:
@@ -199,6 +195,14 @@ class AIPlayer(Player):
 
         return self.rewardUtility(currentState)       
 
+    #rewardUtility
+    #
+    #Description: the reward helper function for TD learning
+    #
+    #Parameters:
+    #   currentState - current state of the game (unused for now)
+    #
+    #return: reward value based on status of a current state
     def rewardUtility(self, currentState):
         WEIGHT = 10 #weight value for moves
 
@@ -282,7 +286,6 @@ class AIPlayer(Player):
 
         return toRet 
         
-    
     #categorizeState
     #
     #Description: catergorizes a state based off of certain information in the state
@@ -503,10 +506,7 @@ class AIPlayer(Player):
     #for each nextState, add to list of states
     #for each state, calculate utilities and add to list of utilities
 
-    
-        
-
-    
+#cd AI
 #python -m unittest TDLearning.TDLearningTest
 class TDLearningTest(unittest.TestCase):
 
