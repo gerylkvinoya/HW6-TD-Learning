@@ -7,6 +7,11 @@
 # Sources Used:
 #   Dr. Nuxoll's slides
 ##
+'''
+Yeah if you could pull from my branch and check if all the algorithms work. especially the updateStateUtility and getMove
+
+and if those look good then try testing with a different reward function or a different alpha/discount factor
+'''
 import random
 import sys
 sys.path.append("..")  #so other modules can be found in parent dir
