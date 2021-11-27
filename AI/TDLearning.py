@@ -24,7 +24,7 @@ from GameState import *
 from AIPlayerUtils import *
 from typing import Dict, List
 import unittest
-import numpy as np
+#import numpy as np
 from pathlib import Path
 import ast
 import json
