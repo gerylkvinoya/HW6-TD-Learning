@@ -123,11 +123,11 @@ class AIPlayer(Player):
         moves = listAllLegalMoves(currentState)
         
         #this ensures that the current state is in the dict
-        #currentUtility might not be used
+        #currentUtility won't be used
         currentUtility = self.getStateUtility(currentState)
 
+        #create a list that has each nextState, nextUtility, and move in a tuple
         stateUtilityList = []
-
         for move in moves:
             nextState = getNextStateAdversarial(currentState, move)
             nextUtility = self.getStateUtility(nextState)
@@ -136,17 +136,19 @@ class AIPlayer(Player):
         #get best utility from list, if there are ties, pick a random one
         random.shuffle(stateUtilityList)
         maxValue = max(stateUtilityList, key=lambda x: x[1])
-
         moveToMake = maxValue[2]
         newState = maxValue[0]
 
+        #this is our chance to explore rather than exploit
         if random.uniform(0, 1) < 0.05:
             randomValue = random.choice(stateUtilityList)
             moveToMake = randomValue[2]
             newState = randomValue[0]
 
+        #update the current state utility using the equation
         self.updateStateUtility(currentState, newState, self.getReward(currentState))
 
+        #return our selected move
         return moveToMake
 
 
@@ -166,16 +168,11 @@ class AIPlayer(Player):
     ##
     #registerWin
     #
-    # This agent doens't learn
+    # This agent learns
     #
     def registerWin(self, hasWon):
-        #need to update the current state's utility
-        if hasWon:
-            print("won")
-        else:
-            print("lost")
+        #just needs to output states to the file at the end of each game.
         self.outputStates()
-        #get reward based on if it has won or not
         
     #reward
     #
@@ -186,13 +183,15 @@ class AIPlayer(Player):
     #
     #return: reward value
     def getReward(self, currentState):
+
+        #if we win or lose add/subtract 100 for the reward
         winner = getWinner(currentState)
         if winner == 1:
             return 100
-
         if winner == 0:
             return -100
 
+        #else, use a utility function as our reward
         return self.rewardUtility(currentState)       
 
     #rewardUtility
@@ -200,7 +199,7 @@ class AIPlayer(Player):
     #Description: the reward helper function for TD learning
     #
     #Parameters:
-    #   currentState - current state of the game (unused for now)
+    #   currentState - current state of the game
     #
     #return: reward value based on status of a current state
     def rewardUtility(self, currentState):
@@ -314,6 +313,7 @@ class AIPlayer(Player):
         enemyWorkerList = getAntList(currentState, enemy, (WORKER,))
         enemyQueenList = getAntList(currentState, enemy, (QUEEN,))
 
+        #store the category into a tuple
         category = (
             currentState.inventories[me].foodCount, #my current food count
             self.queenOnBldg(myQueen, myTunnel, myAnthill), #true if queen is on a my tunnel/anthill, false if not
@@ -394,9 +394,6 @@ class AIPlayer(Player):
     #
     #Description: reads contents of the states file into a list
     #
-    #Parameters:
-    #   
-    #
     #return: list
     def readStateFile(self):
         stateDict = {}
@@ -417,10 +414,7 @@ class AIPlayer(Player):
     #
     #Description: outputs the consolidated states to the text file
     #
-    #Parameters:
-    #   
-    #
-    #return: utility (float)
+    #return: nothing
     def outputStates(self):
         f = open("AI/vinoya21_lauw22_states.txt", "w")
         f.truncate(0)
@@ -441,9 +435,10 @@ class AIPlayer(Player):
     #return: None
     def updateStateUtility(self, currentState, nextState, reward):
         category = self.categorizeState(currentState)
-        currentUtil = self.getStateUtility(currentState)
-        nextUtil = self.getStateUtility(nextState)
+        currentUtil = self.getStateUtility(currentState) #U(A)
+        nextUtil = self.getStateUtility(nextState) #U(B)
 
+        #TD learning equation
         newUtil = currentUtil + self.learningRate*(reward + (self.discountFactor*nextUtil) - currentUtil)
 
         #because we're calling getStateUtility on currentState, we know that the category exists in the dictionary
@@ -460,52 +455,21 @@ class AIPlayer(Player):
     #
     #return: the state's utility from the dict
     def getStateUtility(self, currentState):
+
+        #categorize the state
         category = self.categorizeState(currentState)
 
+        #check if state already exists and return its utility
         if category in self.states:
             return self.states[category]
 
-        #if we don't find it, add to the dict
+        #if we don't find it, add to the dict and return 0
         utility = 0.0
         self.states[category] = utility
 
         return utility
-
-    #+100 for win -100 for losing +1 food count goes up or -1 food count goes down . -10 when ant dies ... strategies +10 when enemy dies / Reward +1 reward for when worker gains a food / state when agent has 2 workers or more than 2 workers penalty favor states/ examples...
-        #alpha 0.1
-        # discount factor - 0.8
-        # explore and exploit - simple 0.01 chance to take a action or 0.05 implementation
-        # Q learning - works but takes longer time (state and action i know next state) utilty of s prime / utility learning
-        #     Q(s,a) = Q(s,a) + alpha * [ R(s) + discount * U(s') - Q(s,a)]
-        #  start with reward function / then do tdlearning funciton
-        # huge table with a lot of new states
-        # output a 1 or 0 if we win or lose
-        # power law of learning
-
-    #Questions to ask:
-    #How is the reward function going to work? Is it only used at the end of the game?
-    #I am trying to save a q table to a file but can't. I previously saved each categorized state and utility and was successful but was unable to do it for a state/action pair
-    #I understand what the idea of Q learning is, but confused about the actual Q table and how/when it should be updated
-    #Ask to walk through the Q learning algorithm like in the textbook
-
-    #get all moves, get next state
-    #initialize all nextstates
-    #generate all possible next states (with an action)
-    #What's the utility of each state, should be initialized at 0
-    #find the action leading to a state with the best utility (if tie, choose random)
-    #no more than 5% chance to pick a random action for exploration
-    #
-    #update value of currentState w/ TDLearning
-    #Going from state A to B, taking action a
-    #U(A) = U(A) + alpha[R(A) + discount* U(B) - U(A)]
-    #take the action selected and go to step 1
-    #reward function
-    #maybe +100 for win -100 for lose +10 for food++, +5 every time ant carry, +5 enemy at count--
-    #use get nextstateadversarial
-
-    #for each nextState, add to list of states
-    #for each state, calculate utilities and add to list of utilities
-
+        
+#Commands to run unit test:
 #cd AI
 #python -m unittest TDLearning.TDLearningTest
 class TDLearningTest(unittest.TestCase):
