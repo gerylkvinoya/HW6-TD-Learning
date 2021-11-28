@@ -50,6 +50,8 @@ class AIPlayer(Player):
     ##
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "TDLearning")
+        #self.discountFactor = 0.9
+        #self.learningRate = 0.1
         self.discountFactor = 0.9
         self.learningRate = 0.1
 
@@ -201,6 +203,8 @@ class AIPlayer(Player):
 
         if winner == 0:
             return -100
+        
+        
 
         return self.rewardUtility(currentState)       
 
@@ -289,7 +293,7 @@ class AIPlayer(Player):
         
     
     #categorizeState
-    #
+    #   
     #Description: catergorizes a state based off of certain information in the state
     #
     #Parameters: currentState - state to categorize

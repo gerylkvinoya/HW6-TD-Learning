@@ -37,7 +37,11 @@
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
+<<<<<<< Updated upstream
       <option name="SDK_HOME" value="$PROJECT_DIR$/../../UP Files/Fall 2021/AI/ReAntics_16Aug2021/src/venv/bin/python" />
+=======
+      <option name="SDK_HOME" value="$PROJECT_DIR$/venv/bin/python" />
+>>>>>>> Stashed changes
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
