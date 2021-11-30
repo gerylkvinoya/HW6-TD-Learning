@@ -44,7 +44,7 @@ class AIPlayer(Player):
     #   cpy           - whether the player is a copy (when playing itself)
     ##
     def __init__(self, inputPlayerId):
-        super(AIPlayer,self).__init__(inputPlayerId, "TDLearning")
+        super(AIPlayer,self).__init__(inputPlayerId, "Temporal Differencing These Ants")
         self.discountFactor = 0.9
         self.learningRate = 0.1
 
